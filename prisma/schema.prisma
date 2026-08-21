@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Product {
+  id            String         @id @default(uuid())
+  name          String
+  sku           String         @unique
+  category      String
+  purchasePrice Float
+  sellingPrice  Float
+  stockQuantity Int
+  unit          String
+  minStock      Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  priceHistory  PriceHistory[]
+  saleItems     SaleItem[]
+}
+
+model PriceHistory {
+  id            String   @id @default(uuid())
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  previousPrice Float
+  newPrice      Float
+  updateDate    DateTime @default(now())
+}
+
+model Sale {
+  id          String     @id @default(uuid())
+  totalAmount Float
+  totalCost   Float
+  profit      Float
+  saleDate    DateTime   @default(now())
+  
+  items       SaleItem[]
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+  cost      Float
+}
+
+model StoreSettings {
+  id          String   @id @default("default")
+  storeName   String   @default("My Retail Shop")
+  address     String   @default("")
+  phone       String   @default("")
+  gstNumber   String   @default("")
+  updatedAt   DateTime @updatedAt
+}
