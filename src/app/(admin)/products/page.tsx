@@ -1,4 +1,5 @@
 import Header from '@/components/Header';
+export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
 import ProductsTable from '@/components/ProductsTable';
 

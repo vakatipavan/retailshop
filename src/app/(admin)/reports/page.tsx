@@ -1,4 +1,5 @@
 import Header from '@/components/Header';
+export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
 import { IndianRupee, TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import Link from 'next/link';

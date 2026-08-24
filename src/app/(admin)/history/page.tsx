@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+export const dynamic = 'force-dynamic';
 import SalesHistoryClient from '@/components/SalesHistoryClient';
 import Header from '@/components/Header';
 
@@ -18,7 +19,10 @@ export default async function HistoryPage() {
   return (
     <div>
       <Header title="Sales History" />
-      <SalesHistoryClient sales={JSON.parse(JSON.stringify(sales))} storeSettings={settings} />
+      <SalesHistoryClient
+        sales={JSON.parse(JSON.stringify(sales))}
+        storeSettings={settings ? JSON.parse(JSON.stringify(settings)) : null}
+      />
     </div>
   );
 }

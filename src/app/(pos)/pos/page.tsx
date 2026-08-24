@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+export const dynamic = 'force-dynamic';
 import POSTerminal from '@/components/POSTerminal';
 
 export default async function POSPage() {
