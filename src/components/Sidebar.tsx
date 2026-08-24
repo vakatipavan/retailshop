@@ -12,10 +12,12 @@ import {
   Tags,
   Tag,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+  { name: 'Sales Predictor', icon: Sparkles, href: '/predictor' },
   { name: 'Products', icon: Package, href: '/products' },
   { name: 'Inventory', icon: Tags, href: '/inventory' },
   { name: 'Update Prices', icon: Tag, href: '/prices' },

@@ -1,7 +1,7 @@
 import Header from '@/components/Header';
 export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
-import { IndianRupee, Package, AlertCircle, ShoppingCart } from 'lucide-react';
+import { IndianRupee, Package, AlertCircle, ShoppingCart, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 import DashboardCharts from '@/components/DashboardCharts';
@@ -78,7 +78,42 @@ export default async function Dashboard() {
           <p style={{ fontSize: '1.875rem', fontWeight: 700 }}>₹{totalInventoryValue.toFixed(2)}</p>
         </div>
       </div>
-      
+
+      {/* AI Sales Predictor Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #4F46E5 0%, #3730A3 100%)',
+        borderRadius: '16px',
+        padding: '1.25rem 1.5rem',
+        color: 'white',
+        marginBottom: '2rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        boxShadow: '0 8px 24px rgba(79,70,229,0.25)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+          <div style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '10px' }}>
+            <Sparkles size={24} color="#FDE047" />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>Smart Sales Predictor & AI Restock Advisor</h3>
+            <p style={{ fontSize: '0.85rem', color: '#C7D2FE', margin: '0.1rem 0 0 0' }}>
+              Groq AI predicts item sales, calculates 30-day demand, and tells you exact quantities to buy for every product.
+            </p>
+          </div>
+        </div>
+        <Link 
+          href="/predictor"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+            backgroundColor: 'white', color: '#4F46E5',
+            padding: '0.65rem 1.25rem', borderRadius: '10px',
+            fontSize: '0.875rem', fontWeight: 700, textDecoration: 'none',
+            whiteSpace: 'nowrap', transition: 'transform 0.15s'
+          }}
+        >
+          View Sales Forecast & Reorder List <ArrowRight size={16} />
+        </Link>
+      </div>
+
       <div className="grid grid-cols-2">
         <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
