@@ -14,7 +14,7 @@ export async function POST(req: Request) {
         sellingPrice: data.sellingPrice || 0,
         stockQuantity: data.stockQuantity || 0,
         unit: data.unit,
-        minStock: data.minStock,
+        minStock: data.minStock || 5,
         variants: data.variants && data.variants.length > 0 ? {
           create: data.variants.map((v: any) => ({
             name: v.name,
@@ -22,6 +22,7 @@ export async function POST(req: Request) {
             purchasePrice: parseFloat(v.purchasePrice),
             sellingPrice: parseFloat(v.sellingPrice),
             stockQuantity: parseInt(v.stockQuantity, 10),
+            minStock: parseInt(v.minStock || '5', 10),
           }))
         } : undefined
       },

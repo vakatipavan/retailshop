@@ -34,6 +34,7 @@ model ProductVariant {
   purchasePrice Float
   sellingPrice  Float
   stockQuantity Int
+  minStock      Int        @default(5)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 

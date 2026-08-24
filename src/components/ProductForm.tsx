@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Router, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Product, ProductVariant } from '@prisma/client';
 import { Plus, Trash2, Layers, Package, Scale } from 'lucide-react';
 
@@ -14,6 +14,7 @@ interface VariantForm {
   purchasePrice: string;
   sellingPrice: string;
   stockQuantity: string;
+  minStock: string;
 }
 
 export default function ProductForm({ initialData }: { initialData?: ProductWithVariants }) {
@@ -43,11 +44,12 @@ export default function ProductForm({ initialData }: { initialData?: ProductWith
           purchasePrice: String(v.purchasePrice),
           sellingPrice: String(v.sellingPrice),
           stockQuantity: String(v.stockQuantity),
+          minStock: String(v.minStock || 5),
         }))
       : [
-          { name: '50g Packet', sku: '', purchasePrice: '', sellingPrice: '', stockQuantity: '' },
-          { name: '100g Packet', sku: '', purchasePrice: '', sellingPrice: '', stockQuantity: '' },
-          { name: '250g Packet', sku: '', purchasePrice: '', sellingPrice: '', stockQuantity: '' },
+          { name: '50g Packet', sku: '', purchasePrice: '', sellingPrice: '', stockQuantity: '', minStock: '5' },
+          { name: '100g Packet', sku: '', purchasePrice: '', sellingPrice: '', stockQuantity: '', minStock: '5' },
+          { name: '250g Packet', sku: '', purchasePrice: '', sellingPrice: '', stockQuantity: '', minStock: '5' },
         ]
   );
 
@@ -55,7 +57,6 @@ export default function ProductForm({ initialData }: { initialData?: ProductWith
     const { name, value } = e.target;
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
-      // Auto-update base SKU if name changes and SKU is blank/default
       if (name === 'name' && (!prev.sku || prev.sku.startsWith('SKU'))) {
         const cleanName = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8);
         if (cleanName) updated.sku = `${cleanName}-001`;
@@ -77,14 +78,13 @@ export default function ProductForm({ initialData }: { initialData?: ProductWith
     const cleanPreset = presetName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const newSku = `${baseSKU}-${cleanPreset}`;
 
-    // Don't add duplicate presets if already present
     if (variants.some(v => v.name.toLowerCase() === presetName.toLowerCase())) {
       return;
     }
 
     setVariants(prev => [
       ...prev,
-      { name: presetName, sku: newSku, purchasePrice: '', sellingPrice: '', stockQuantity: '' }
+      { name: presetName, sku: newSku, purchasePrice: '', sellingPrice: '', stockQuantity: '', minStock: '5' }
     ]);
   };
 
@@ -108,13 +108,13 @@ export default function ProductForm({ initialData }: { initialData?: ProductWith
         throw new Error('Please enter at least one weighted packet size with a selling price.');
       }
 
-      // Auto assign variant SKUs if left empty
       const finalVariants = payloadVariants.map((v, idx) => {
         const baseSKU = formData.sku || 'SKU';
         const cleanName = v.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
         return {
           ...v,
-          sku: v.sku.trim() || `${baseSKU}-${cleanName || (idx + 1)}`
+          sku: v.sku.trim() || `${baseSKU}-${cleanName || (idx + 1)}`,
+          minStock: v.minStock || '5',
         };
       });
 
@@ -304,10 +304,10 @@ export default function ProductForm({ initialData }: { initialData?: ProductWith
           
           <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.85rem' }}>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#047857', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Scale size={22} /> Add Weighted Packets & Individual Prices
+              <Scale size={22} /> Add Weighted Packets, Prices & Low Stock Alert Levels
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-              Enter each packet weight (50g, 100g, 250g, 500g, 1kg) along with its cost price, selling price, and initial stock quantity.
+              Set individual cost price, selling price, initial stock, and <strong>low stock alert level</strong> for every packet size!
             </p>
 
             {/* Quick Add Weight Preset Pills */}
@@ -344,8 +344,9 @@ export default function ProductForm({ initialData }: { initialData?: ProductWith
                 <tr style={{ backgroundColor: '#F0FDF4', borderBottom: '2px solid #A7F3D0' }}>
                   <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, color: '#065F46' }}>Packet Size / Weight</th>
                   <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, color: '#065F46' }}>Cost Price (₹)</th>
-                  <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, color: '#065F46' }}>Selling Price / MRP (₹)</th>
-                  <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, color: '#065F46' }}>Initial Stock Qty</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, color: '#065F46' }}>Selling Price (₹)</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, color: '#065F46' }}>Initial Stock</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, color: '#B45309', backgroundColor: '#FEF3C7' }}>🚨 Low Stock Alert Level</th>
                   <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, color: '#065F46' }}>SKU / Barcode</th>
                   <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, color: '#065F46', textAlign: 'center' }}>Remove</th>
                 </tr>
@@ -399,6 +400,17 @@ export default function ProductForm({ initialData }: { initialData?: ProductWith
                         onChange={e => handleVariantChange(idx, 'stockQuantity', e.target.value)}
                       />
                     </td>
+                    <td style={{ padding: '0.6rem 0.75rem', backgroundColor: '#FFFBEB' }}>
+                      <input
+                        required
+                        type="number"
+                        placeholder="5"
+                        className="input"
+                        style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem', fontWeight: 700, color: '#B45309', border: '1px solid #FCD34D' }}
+                        value={variant.minStock}
+                        onChange={e => handleVariantChange(idx, 'minStock', e.target.value)}
+                      />
+                    </td>
                     <td style={{ padding: '0.6rem 0.75rem' }}>
                       <input
                         type="text"
@@ -450,7 +462,7 @@ export default function ProductForm({ initialData }: { initialData?: ProductWith
           Cancel
         </button>
         <button type="submit" className="btn btn-primary" disabled={isSubmitting} style={{ padding: '0.75rem 1.75rem', fontSize: '1rem' }}>
-          {isSubmitting ? 'Saving Product...' : 'Save Product & Packet Sizes'}
+          {isSubmitting ? 'Saving Product...' : 'Save Product & Low Stock Alerts'}
         </button>
       </div>
 
