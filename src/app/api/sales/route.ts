@@ -30,7 +30,8 @@ export async function POST(req: Request) {
           profit,
           items: {
             create: items.map((item: any) => ({
-              productId: item.id,
+              productId: item.productId || item.id,
+              variantId: item.variantId || undefined,
               quantity: item.cartQuantity,
               price: item.sellingPrice,
               cost: item.purchasePrice
@@ -41,14 +42,27 @@ export async function POST(req: Request) {
 
       // 2. Update inventory
       for (const item of items) {
-        await tx.product.update({
-          where: { id: item.id },
-          data: {
-            stockQuantity: {
-              decrement: item.cartQuantity
+        if (item.variantId) {
+          // Decrement variant stock
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: {
+              stockQuantity: {
+                decrement: item.cartQuantity
+              }
             }
-          }
-        });
+          });
+        } else {
+          // Decrement main product stock
+          await tx.product.update({
+            where: { id: item.productId || item.id },
+            data: {
+              stockQuantity: {
+                decrement: item.cartQuantity
+              }
+            }
+          });
+        }
       }
 
       return newSale;

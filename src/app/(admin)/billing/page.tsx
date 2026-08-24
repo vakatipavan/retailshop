@@ -5,7 +5,8 @@ import BillingInterface from '@/components/BillingInterface';
 
 export default async function BillingPage() {
   const products = await prisma.product.findMany({
-    orderBy: { name: 'asc' }
+    orderBy: { name: 'asc' },
+    include: { variants: true }
   });
 
   return (

@@ -6,6 +6,7 @@ import ProductsTable from '@/components/ProductsTable';
 export default async function ProductsPage() {
   const products = await prisma.product.findMany({
     orderBy: { name: 'asc' },
+    include: { variants: true }
   });
 
   return (

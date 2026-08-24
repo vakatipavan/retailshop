@@ -10,17 +10,27 @@ export async function POST(req: Request) {
         name: data.name,
         sku: data.sku,
         category: data.category,
-        purchasePrice: data.purchasePrice,
-        sellingPrice: data.sellingPrice,
-        stockQuantity: data.stockQuantity,
+        purchasePrice: data.purchasePrice || 0,
+        sellingPrice: data.sellingPrice || 0,
+        stockQuantity: data.stockQuantity || 0,
         unit: data.unit,
         minStock: data.minStock,
-      }
+        variants: data.variants && data.variants.length > 0 ? {
+          create: data.variants.map((v: any) => ({
+            name: v.name,
+            sku: v.sku,
+            purchasePrice: parseFloat(v.purchasePrice),
+            sellingPrice: parseFloat(v.sellingPrice),
+            stockQuantity: parseInt(v.stockQuantity, 10),
+          }))
+        } : undefined
+      },
+      include: { variants: true }
     });
 
     return NextResponse.json(product, { status: 201 });
   } catch (error) {
     console.error('Create product error:', error);
-    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create product. Check SKU uniqueness.' }, { status: 500 });
   }
 }

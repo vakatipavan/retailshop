@@ -13,6 +13,7 @@ import {
   Tag,
   ExternalLink,
   Sparkles,
+  X,
 } from 'lucide-react';
 
 const menuItems = [
@@ -26,87 +27,136 @@ const menuItems = [
   { name: 'Settings', icon: Settings, href: '/settings' },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
 
+  const handleLinkClick = () => {
+    if (onClose) onClose();
+  };
+
   return (
-    <aside className="sidebar" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {/* Logo */}
-      <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <ShoppingCart size={22} />
-          ShopManager
-        </h2>
-        <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.1rem', paddingLeft: '1.8rem' }}>Admin Portal</p>
-      </div>
+    <>
+      {/* Overlay for mobile */}
+      {isOpen && (
+        <div
+          className="sidebar-overlay active"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* POS Quick-launch button */}
-      <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)' }}>
-        <Link
-          href="/pos"
-          target="_blank"
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.5rem',
-            backgroundColor: '#4F46E5', color: 'white',
-            padding: '0.6rem 1rem', borderRadius: '8px',
-            fontSize: '0.875rem', fontWeight: 600,
-            transition: 'background 0.15s',
-          }}
-          onMouseOver={e => e.currentTarget.style.backgroundColor = '#4338CA'}
-          onMouseOut={e => e.currentTarget.style.backgroundColor = '#4F46E5'}
-        >
-          <ShoppingCart size={16} />
-          Open POS Terminal
-          <ExternalLink size={13} style={{ marginLeft: 'auto', opacity: 0.7 }} />
-        </Link>
-      </div>
+      <aside className={`sidebar${isOpen ? ' open' : ''}`}>
+        {/* Logo + Close button */}
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ShoppingCart size={22} />
+              ShopManager
+            </h2>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.1rem', paddingLeft: '1.8rem' }}>Admin Portal</p>
+          </div>
+          {/* Close button — only visible on mobile */}
+          <button
+            onClick={onClose}
+            aria-label="Close sidebar"
+            style={{
+              display: 'none',
+              padding: '0.4rem',
+              borderRadius: '8px',
+              color: 'var(--text-secondary)',
+              background: 'var(--bg-color)',
+            }}
+            className="sidebar-close-btn"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: '0.5rem 0' }}>
-        <ul style={{ listStyle: 'none' }}>
-          {menuItems.map(item => {
-            const active = pathname === item.href;
-            return (
-              <li key={item.name}>
-                <Link
-                  href={item.href}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.7rem',
-                    padding: '0.65rem 1.25rem',
-                    color: active ? 'var(--primary-color)' : 'var(--text-secondary)',
-                    backgroundColor: active ? '#EEF2FF' : 'transparent',
-                    borderRight: active ? '3px solid var(--primary-color)' : '3px solid transparent',
-                    fontWeight: active ? 600 : 400,
-                    transition: 'all 0.15s',
-                    fontSize: '0.9rem',
-                  }}
-                  onMouseOver={e => {
-                    if (!active) {
-                      e.currentTarget.style.backgroundColor = '#F3F4F6';
-                      e.currentTarget.style.color = 'var(--primary-color)';
-                    }
-                  }}
-                  onMouseOut={e => {
-                    if (!active) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }
-                  }}
-                >
-                  <item.icon size={18} />
-                  {item.name}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+        {/* POS Quick-launch button */}
+        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)' }}>
+          <Link
+            href="/pos"
+            target="_blank"
+            onClick={handleLinkClick}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              backgroundColor: '#4F46E5', color: 'white',
+              padding: '0.6rem 1rem', borderRadius: '8px',
+              fontSize: '0.875rem', fontWeight: 600,
+              transition: 'background 0.15s',
+            }}
+            onMouseOver={e => e.currentTarget.style.backgroundColor = '#4338CA'}
+            onMouseOut={e => e.currentTarget.style.backgroundColor = '#4F46E5'}
+          >
+            <ShoppingCart size={16} />
+            Open POS Terminal
+            <ExternalLink size={13} style={{ marginLeft: 'auto', opacity: 0.7 }} />
+          </Link>
+        </div>
 
-      <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)' }}>
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-          © 2026 ShopManager
-        </p>
-      </div>
-    </aside>
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '0.5rem 0' }}>
+          <ul style={{ listStyle: 'none' }}>
+            {menuItems.map(item => {
+              const active = pathname === item.href;
+              return (
+                <li key={item.name}>
+                  <Link
+                    href={item.href}
+                    onClick={handleLinkClick}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.7rem',
+                      padding: '0.65rem 1.25rem',
+                      color: active ? 'var(--primary-color)' : 'var(--text-secondary)',
+                      backgroundColor: active ? '#EEF2FF' : 'transparent',
+                      borderRight: active ? '3px solid var(--primary-color)' : '3px solid transparent',
+                      fontWeight: active ? 600 : 400,
+                      transition: 'all 0.15s',
+                      fontSize: '0.9rem',
+                    }}
+                    onMouseOver={e => {
+                      if (!active) {
+                        e.currentTarget.style.backgroundColor = '#F3F4F6';
+                        e.currentTarget.style.color = 'var(--primary-color)';
+                      }
+                    }}
+                    onMouseOut={e => {
+                      if (!active) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                      }
+                    }}
+                  >
+                    <item.icon size={18} />
+                    {item.name}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+            © 2026 ShopManager
+          </p>
+        </div>
+      </aside>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .sidebar-close-btn {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+          }
+        }
+      `}</style>
+    </>
   );
 }

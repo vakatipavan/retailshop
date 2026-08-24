@@ -1,13 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --primary-color: #4F46E5; /* Indigo 600 */
+  --primary-color: #4F46E5;
   --primary-hover: #4338CA;
-  --bg-color: #F9FAFB; /* Gray 50 */
+  --bg-color: #F9FAFB;
   --surface-color: #FFFFFF;
-  --text-primary: #111827; /* Gray 900 */
-  --text-secondary: #4B5563; /* Gray 600 */
-  --border-color: #E5E7EB; /* Gray 200 */
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --border-color: #E5E7EB;
   --success-color: #10B981;
   --danger-color: #EF4444;
   --warning-color: #F59E0B;
@@ -17,6 +17,7 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --transition: all 0.2s ease-in-out;
+  --sidebar-width: 260px;
 }
 
 * {
@@ -25,12 +26,17 @@
   padding: 0;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: var(--bg-color);
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 a {
@@ -45,14 +51,14 @@ button {
   background: none;
 }
 
-/* Utilities */
+/* ─── Utilities ─────────────────────────────── */
 .container {
   max-width: 1280px;
   margin: 0 auto;
   padding: 0 1.5rem;
 }
 
-/* Base Card */
+/* ─── Card ───────────────────────────────────── */
 .card {
   background: var(--surface-color);
   border-radius: var(--radius-lg);
@@ -61,7 +67,7 @@ button {
   padding: 1.5rem;
 }
 
-/* Base Button */
+/* ─── Buttons ────────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -70,6 +76,7 @@ button {
   font-weight: 500;
   border-radius: var(--radius-md);
   transition: var(--transition);
+  white-space: nowrap;
 }
 
 .btn-primary {
@@ -87,7 +94,7 @@ button {
   color: white;
 }
 
-/* Inputs */
+/* ─── Inputs ─────────────────────────────────── */
 .input {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -105,25 +112,58 @@ button {
   background-color: #FFFFFF;
 }
 
-/* Layout Dashboard */
+/* ─── Layout ─────────────────────────────────── */
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
+  position: relative;
 }
+
+/* Sidebar */
 .sidebar {
-  width: 260px;
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
   background-color: var(--surface-color);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  z-index: 200;
 }
+
+/* Main content */
 .main-content {
   flex: 1;
   padding: 2rem;
   overflow-y: auto;
+  min-width: 0;
 }
 
-/* Dashboard Grid */
+/* Mobile top bar */
+.mobile-topbar {
+  display: none;
+}
+
+/* Sidebar overlay (mobile) */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 199;
+  backdrop-filter: blur(2px);
+}
+.sidebar-overlay.active {
+  display: block;
+}
+
+/* ─── Grids ──────────────────────────────────── */
 .grid {
   display: grid;
   gap: 1.5rem;
@@ -133,13 +173,89 @@ button {
 .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
-@media (max-width: 768px) {
-  .grid-cols-3, .grid-cols-4 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+/* ─── Responsive: Tablet (≤1024px) ──────────── */
+@media (max-width: 1024px) {
+  .grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .main-content {
+    padding: 1.5rem;
   }
 }
 
-/* Print Styles */
+/* ─── Responsive: Mobile (≤768px) ───────────── */
+@media (max-width: 768px) {
+  /* Show mobile topbar, hide sticky sidebar position */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: var(--surface-color);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* On mobile sidebar is fixed and hidden off-screen */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    transform: translateX(-100%);
+    box-shadow: none;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .main-content {
+    padding: 1rem;
+    width: 100%;
+  }
+
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .grid {
+    gap: 1rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+}
+
+/* ─── Responsive: Small phones (≤480px) ─────── */
+@media (max-width: 480px) {
+  .main-content {
+    padding: 0.75rem;
+  }
+  .card {
+    padding: 0.875rem;
+    border-radius: var(--radius-md);
+  }
+  .btn {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+  }
+  .input {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* ─── Print Styles ───────────────────────────── */
 @media print {
   .no-print {
     display: none !important;
@@ -147,12 +263,34 @@ button {
   .print-only {
     display: block !important;
   }
+  .sidebar,
+  .mobile-topbar,
+  .sidebar-overlay {
+    display: none !important;
+  }
   body {
     background-color: white;
     color: black;
+  }
+  .main-content {
+    padding: 0 !important;
   }
 }
 
 .print-only {
   display: none;
+}
+
+/* ─── Touch-friendly improvements ───────────── */
+@media (hover: none) and (pointer: coarse) {
+  .btn {
+    min-height: 44px;
+    padding: 0.625rem 1rem;
+  }
+  .input {
+    min-height: 44px;
+  }
+  button {
+    min-height: 44px;
+  }
 }

@@ -43,7 +43,7 @@ export default async function Dashboard() {
     <div>
       <Header title="Dashboard" />
       
-      <div className="grid grid-cols-4" style={{ marginBottom: '2rem' }}>
+      <div className="grid grid-cols-4" style={{ marginBottom: '2rem', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))' }}>
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
             <h3 style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Today's Sales</h3>
@@ -114,7 +114,7 @@ export default async function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2">
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}>
         <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <AlertCircle size={20} color="var(--danger-color)" /> Action Required

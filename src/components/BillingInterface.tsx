@@ -231,106 +231,163 @@ export default function BillingInterface({ products }: { products: Product[] }) 
   }
 
   return (
-    <div className="grid grid-cols-3" style={{ height: 'calc(100vh - 150px)' }}>
-      {/* Products Section */}
-      <div className="card" style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
-          <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-          <input
-            type="text"
-            placeholder="Search products by name or SKU (Barcode scanner supported)..."
-            className="input"
-            style={{ paddingLeft: '3rem' }}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            autoFocus
-          />
-        </div>
-        
-        <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', alignContent: 'start' }}>
-          {filteredProducts.map(product => (
-            <div 
-              key={product.id} 
-              onClick={() => addToCart(product)}
-              style={{ 
-                border: '1px solid var(--border-color)', 
-                borderRadius: 'var(--radius-md)', 
-                padding: '1rem',
-                cursor: 'pointer',
-                transition: 'var(--transition)',
-                backgroundColor: product.stockQuantity === 0 ? '#F3F4F6' : 'white',
-                opacity: product.stockQuantity === 0 ? 0.6 : 1
-              }}
-              onMouseOver={(e) => {
-                if (product.stockQuantity > 0) e.currentTarget.style.borderColor = 'var(--primary-color)';
-              }}
-              onMouseOut={(e) => {
-                if (product.stockQuantity > 0) e.currentTarget.style.borderColor = 'var(--border-color)';
-              }}
-            >
-              <h4 style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{product.name}</h4>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{product.category}</p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 700, color: 'var(--success-color)' }}>₹{product.sellingPrice}</span>
-                <span style={{ fontSize: '0.875rem', color: product.stockQuantity <= product.minStock ? 'var(--danger-color)' : 'var(--text-secondary)' }}>
-                  {product.stockQuantity} {product.unit}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Cart Section */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#F9FAFB' }}>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          Current Bill
-        </h3>
-        
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
-          {cart.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '2rem' }}>
-              <ShoppingCart size={48} style={{ margin: '0 auto', opacity: 0.2 }} />
-              <p style={{ marginTop: '1rem' }}>Cart is empty</p>
-            </div>
-          ) : (
-            cart.map(item => (
-              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontWeight: 600 }}>{item.name}</p>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>₹{item.sellingPrice} × {item.cartQuantity}</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <button className="btn" onClick={() => updateQuantity(item.id, -1)} style={{ padding: '0.25rem', backgroundColor: '#F3F4F6' }}><Minus size={16} /></button>
-                  <span style={{ fontWeight: 600, width: '24px', textAlign: 'center' }}>{item.cartQuantity}</span>
-                  <button className="btn" onClick={() => updateQuantity(item.id, 1)} style={{ padding: '0.25rem', backgroundColor: '#F3F4F6' }}><Plus size={16} /></button>
-                  <button className="btn" onClick={() => removeFromCart(item.id)} style={{ padding: '0.25rem', color: 'var(--danger-color)', marginLeft: '0.5rem' }}><Trash2 size={16} /></button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        
-        <div style={{ borderTop: '2px dashed var(--border-color)', paddingTop: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Subtotal</span>
-            <span style={{ fontWeight: 600 }}>₹{totalAmount.toFixed(2)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <span style={{ fontSize: '1.25rem', fontWeight: 700 }}>Grand Total</span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary-color)' }}>₹{totalAmount.toFixed(2)}</span>
+    <>
+      <style>{`
+        .billing-layout {
+          display: grid;
+          grid-template-columns: 2fr 1fr;
+          gap: 1.5rem;
+          height: calc(100vh - 150px);
+        }
+        .billing-products-panel {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        }
+        .billing-cart-panel {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          background-color: #F9FAFB;
+        }
+        .billing-product-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 1rem;
+          align-content: start;
+        }
+        @media (max-width: 768px) {
+          .billing-layout {
+            grid-template-columns: 1fr;
+            height: auto;
+          }
+          .billing-products-panel {
+            height: auto;
+            max-height: 55vh;
+          }
+          .billing-cart-panel {
+            height: auto;
+            max-height: 60vh;
+          }
+          .billing-product-grid {
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          }
+        }
+        @media (max-width: 480px) {
+          .billing-product-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+      `}</style>
+
+      <div className="billing-layout">
+        {/* Products Section */}
+        <div className="card billing-products-panel">
+          <div style={{ position: 'relative', marginBottom: '1rem' }}>
+            <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+            <input
+              type="text"
+              placeholder="Search products by name or SKU..."
+              className="input"
+              style={{ paddingLeft: '3rem' }}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+            />
           </div>
           
-          <button 
-            className="btn btn-primary" 
-            style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}
-            onClick={completeSale}
-            disabled={cart.length === 0 || isProcessing}
-          >
-            {isProcessing ? 'Processing...' : 'Complete Sale & Print Bill'}
-          </button>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div className="billing-product-grid">
+              {filteredProducts.map(product => (
+                <div 
+                  key={product.id} 
+                  onClick={() => addToCart(product)}
+                  style={{ 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: 'var(--radius-md)', 
+                    padding: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'var(--transition)',
+                    backgroundColor: product.stockQuantity === 0 ? '#F3F4F6' : 'white',
+                    opacity: product.stockQuantity === 0 ? 0.6 : 1
+                  }}
+                  onMouseOver={(e) => {
+                    if (product.stockQuantity > 0) e.currentTarget.style.borderColor = 'var(--primary-color)';
+                  }}
+                  onMouseOut={(e) => {
+                    if (product.stockQuantity > 0) e.currentTarget.style.borderColor = 'var(--border-color)';
+                  }}
+                >
+                  <h4 style={{ fontWeight: 600, marginBottom: '0.25rem', fontSize: '0.9rem' }}>{product.name}</h4>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>{product.category}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--success-color)', fontSize: '0.9rem' }}>₹{product.sellingPrice}</span>
+                    <span style={{ fontSize: '0.78rem', color: product.stockQuantity <= product.minStock ? 'var(--danger-color)' : 'var(--text-secondary)' }}>
+                      {product.stockQuantity} {product.unit}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        {/* Cart Section */}
+        <div className="card billing-cart-panel">
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            Current Bill
+            {cart.length > 0 && (
+              <span style={{ marginLeft: 'auto', fontSize: '0.8rem', backgroundColor: 'var(--primary-color)', color: 'white', borderRadius: '999px', padding: '0.1rem 0.5rem' }}>
+                {cart.length}
+              </span>
+            )}
+          </h3>
+          
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+            {cart.length === 0 ? (
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '2rem' }}>
+                <ShoppingCart size={40} style={{ margin: '0 auto', opacity: 0.2 }} />
+                <p style={{ marginTop: '1rem', fontSize: '0.875rem' }}>Cart is empty</p>
+              </div>
+            ) : (
+              cart.map(item => (
+                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '0.65rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹{item.sellingPrice} × {item.cartQuantity}</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0, marginLeft: '0.5rem' }}>
+                    <button className="btn" onClick={() => updateQuantity(item.id, -1)} style={{ padding: '0.25rem', backgroundColor: '#F3F4F6' }}><Minus size={14} /></button>
+                    <span style={{ fontWeight: 600, width: '20px', textAlign: 'center', fontSize: '0.875rem' }}>{item.cartQuantity}</span>
+                    <button className="btn" onClick={() => updateQuantity(item.id, 1)} style={{ padding: '0.25rem', backgroundColor: '#F3F4F6' }}><Plus size={14} /></button>
+                    <button className="btn" onClick={() => removeFromCart(item.id)} style={{ padding: '0.25rem', color: 'var(--danger-color)' }}><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          <div style={{ borderTop: '2px dashed var(--border-color)', paddingTop: '0.875rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Subtotal</span>
+              <span style={{ fontWeight: 600 }}>₹{totalAmount.toFixed(2)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
+              <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Grand Total</span>
+              <span style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--primary-color)' }}>₹{totalAmount.toFixed(2)}</span>
+            </div>
+            
+            <button 
+              className="btn btn-primary" 
+              style={{ width: '100%', padding: '0.875rem', fontSize: '1rem' }}
+              onClick={completeSale}
+              disabled={cart.length === 0 || isProcessing}
+            >
+              {isProcessing ? 'Processing...' : 'Complete Sale & Print Bill'}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
