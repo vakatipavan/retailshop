@@ -12,13 +12,15 @@ export default async function Dashboard() {
   today.setHours(0, 0, 0, 0);
 
   const [
-    totalProducts,
+    totalProductsCount,
     products,
     todaySales,
     allSales
   ] = await Promise.all([
     prisma.product.count(),
-    prisma.product.findMany(),
+    prisma.product.findMany({
+      include: { variants: true }
+    }),
     prisma.sale.findMany({
       where: {
         saleDate: {
@@ -31,11 +33,33 @@ export default async function Dashboard() {
     })
   ]);
 
-  const lowStockCount = products.filter(p => p.stockQuantity <= p.minStock && p.stockQuantity > 0).length;
-  const outOfStockCount = products.filter(p => p.stockQuantity === 0).length;
-  
-  const totalInventoryValue = products.reduce((acc, p) => acc + (p.purchasePrice * p.stockQuantity), 0);
-  
+  let lowStockCount = 0;
+  let outOfStockCount = 0;
+  let totalInventoryValue = 0;
+  let totalInventoryItemCount = 0;
+
+  products.forEach(p => {
+    if (p.variants && p.variants.length > 0) {
+      p.variants.forEach(v => {
+        totalInventoryItemCount++;
+        if (v.stockQuantity === 0) {
+          outOfStockCount++;
+        } else if (v.stockQuantity <= v.minStock) {
+          lowStockCount++;
+        }
+        totalInventoryValue += v.purchasePrice * v.stockQuantity;
+      });
+    } else {
+      totalInventoryItemCount++;
+      if (p.stockQuantity === 0) {
+        outOfStockCount++;
+      } else if (p.stockQuantity <= p.minStock) {
+        lowStockCount++;
+      }
+      totalInventoryValue += p.purchasePrice * p.stockQuantity;
+    }
+  });
+
   const todayRevenue = todaySales.reduce((acc, s) => acc + s.totalAmount, 0);
   const todayProfit = todaySales.reduce((acc, s) => acc + s.profit, 0);
 
@@ -67,7 +91,7 @@ export default async function Dashboard() {
             <h3 style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Total Products</h3>
             <div style={{ color: 'var(--text-secondary)' }}><Package size={20} /></div>
           </div>
-          <p style={{ fontSize: '1.875rem', fontWeight: 700 }}>{totalProducts}</p>
+          <p style={{ fontSize: '1.875rem', fontWeight: 700 }}>{totalProductsCount}</p>
         </div>
         
         <div className="card">
@@ -122,16 +146,20 @@ export default async function Dashboard() {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)' }}>
               <div>
-                <p style={{ fontWeight: 600, color: 'var(--danger-color)' }}>Out of Stock Products</p>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{outOfStockCount} products need immediate restocking</p>
+                <p style={{ fontWeight: 600, color: 'var(--danger-color)' }}>Out of Stock Items</p>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  {outOfStockCount === 0 ? 'All products & sizes in stock' : `${outOfStockCount} item size(s) need immediate restocking`}
+                </p>
               </div>
               <Link href="/inventory" className="btn btn-danger">View</Link>
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', backgroundColor: 'rgba(245, 158, 11, 0.1)', borderRadius: 'var(--radius-md)' }}>
               <div>
-                <p style={{ fontWeight: 600, color: 'var(--warning-color)' }}>Low Stock Products</p>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{lowStockCount} products are running low</p>
+                <p style={{ fontWeight: 600, color: 'var(--warning-color)' }}>Low Stock Items</p>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  {lowStockCount === 0 ? 'No low stock alerts' : `${lowStockCount} item size(s) running low`}
+                </p>
               </div>
               <Link href="/inventory" className="btn" style={{ backgroundColor: 'var(--warning-color)', color: 'white' }}>View</Link>
             </div>
