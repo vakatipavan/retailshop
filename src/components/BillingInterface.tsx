@@ -1,12 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Search, Plus, Minus, Trash2, IndianRupee, ShoppingCart } from 'lucide-react';
-import { Product } from '@prisma/client';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, Layers } from 'lucide-react';
+import { Product, ProductVariant } from '@prisma/client';
 
-type CartItem = Product & { cartQuantity: number };
+type ProductWithVariants = Product & { variants?: ProductVariant[] };
 
-export default function BillingInterface({ products }: { products: Product[] }) {
+type CartItem = {
+  cartId: string;
+  productId: string;
+  variantId?: string;
+  name: string;
+  sku: string;
+  purchasePrice: number;
+  sellingPrice: number;
+  stockQuantity: number;
+  cartQuantity: number;
+};
+
+export default function BillingInterface({ products: initialProducts }: { products: ProductWithVariants[] }) {
+  const [products, setProducts] = useState<ProductWithVariants[]>(initialProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -24,34 +37,81 @@ export default function BillingInterface({ products }: { products: Product[] }) 
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.variants?.some(v => v.name.toLowerCase().includes(searchTerm.toLowerCase()) || v.sku.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const addToCart = (product: Product) => {
+  const addVariantToCart = (product: ProductWithVariants, variant: ProductVariant, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (variant.stockQuantity <= 0) {
+      alert('This packet size is out of stock!');
+      return;
+    }
+
+    const cartId = `${product.id}_${variant.id}`;
+    const displayName = `${product.name} (${variant.name})`;
+
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
+      const existing = prev.find(item => item.cartId === cartId);
+      if (existing) {
+        if (existing.cartQuantity >= variant.stockQuantity) {
+          alert('Cannot exceed available stock');
+          return prev;
+        }
+        return prev.map(item => 
+          item.cartId === cartId ? { ...item, cartQuantity: item.cartQuantity + 1 } : item
+        );
+      }
+      return [...prev, {
+        cartId,
+        productId: product.id,
+        variantId: variant.id,
+        name: displayName,
+        sku: variant.sku,
+        purchasePrice: variant.purchasePrice,
+        sellingPrice: variant.sellingPrice,
+        stockQuantity: variant.stockQuantity,
+        cartQuantity: 1
+      }];
+    });
+  };
+
+  const addStandardProductToCart = (product: ProductWithVariants) => {
+    if (product.stockQuantity <= 0) {
+      alert('Product is out of stock');
+      return;
+    }
+    const cartId = product.id;
+
+    setCart(prev => {
+      const existing = prev.find(item => item.cartId === cartId);
       if (existing) {
         if (existing.cartQuantity >= product.stockQuantity) {
           alert('Cannot exceed available stock');
           return prev;
         }
         return prev.map(item => 
-          item.id === product.id ? { ...item, cartQuantity: item.cartQuantity + 1 } : item
+          item.cartId === cartId ? { ...item, cartQuantity: item.cartQuantity + 1 } : item
         );
       }
-      if (product.stockQuantity <= 0) {
-        alert('Product is out of stock');
-        return prev;
-      }
-      return [...prev, { ...product, cartQuantity: 1 }];
+      return [...prev, {
+        cartId,
+        productId: product.id,
+        name: product.name,
+        sku: product.sku,
+        purchasePrice: product.purchasePrice,
+        sellingPrice: product.sellingPrice,
+        stockQuantity: product.stockQuantity,
+        cartQuantity: 1
+      }];
     });
   };
 
-  const updateQuantity = (id: string, delta: number) => {
+  const updateQuantity = (cartId: string, delta: number) => {
     setCart(prev => prev.map(item => {
-      if (item.id === id) {
+      if (item.cartId === cartId) {
         const newQty = item.cartQuantity + delta;
-        if (newQty <= 0) return item; // Handled by remove
+        if (newQty <= 0) return item;
         if (newQty > item.stockQuantity) {
           alert('Cannot exceed available stock');
           return item;
@@ -62,8 +122,8 @@ export default function BillingInterface({ products }: { products: Product[] }) 
     }));
   };
 
-  const removeFromCart = (id: string) => {
-    setCart(prev => prev.filter(item => item.id !== id));
+  const removeFromCart = (cartId: string) => {
+    setCart(prev => prev.filter(item => item.cartId !== cartId));
   };
 
   const totalAmount = cart.reduce((acc, item) => acc + (item.sellingPrice * item.cartQuantity), 0);
@@ -82,6 +142,21 @@ export default function BillingInterface({ products }: { products: Product[] }) 
       if (!res.ok) throw new Error('Sale failed');
       const data = await res.json();
       
+      // Update local product stock
+      setProducts(prev => prev.map(p => {
+        let updatedP = { ...p };
+        if (p.variants && p.variants.length > 0) {
+          updatedP.variants = p.variants.map(v => {
+            const sold = cart.find(c => c.variantId === v.id);
+            return sold ? { ...v, stockQuantity: v.stockQuantity - sold.cartQuantity } : v;
+          });
+        } else {
+          const sold = cart.find(c => c.productId === p.id && !c.variantId);
+          if (sold) updatedP.stockQuantity = p.stockQuantity - sold.cartQuantity;
+        }
+        return updatedP;
+      }));
+
       setReceiptData({
         cart: [...cart],
         saleId: data.sale.id,
@@ -100,7 +175,7 @@ export default function BillingInterface({ products }: { products: Product[] }) 
   if (receiptData) {
     return (
       <>
-        {/* Hidden print-only receipt — identical to Sales History */}
+        {/* Hidden print-only receipt */}
         <div className="print-only" style={{ padding: '2rem', maxWidth: '400px', margin: '0 auto', fontFamily: 'monospace' }}>
           <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700 }}>
@@ -133,7 +208,7 @@ export default function BillingInterface({ products }: { products: Product[] }) 
             </thead>
             <tbody>
               {receiptData.cart.map(item => (
-                <tr key={item.id}>
+                <tr key={item.cartId}>
                   <td style={{ paddingTop: '0.3rem' }}>{item.name}</td>
                   <td style={{ textAlign: 'center' }}>{item.cartQuantity}</td>
                   <td style={{ textAlign: 'right' }}>₹{item.sellingPrice.toFixed(2)}</td>
@@ -153,7 +228,7 @@ export default function BillingInterface({ products }: { products: Product[] }) 
           </div>
         </div>
 
-        {/* On-screen preview modal — identical to Sales History */}
+        {/* On-screen preview modal */}
         <div className="no-print" style={{
           position: 'fixed', inset: 0, zIndex: 1000,
           backgroundColor: 'rgba(0,0,0,0.5)',
@@ -195,7 +270,7 @@ export default function BillingInterface({ products }: { products: Product[] }) 
               </thead>
               <tbody>
                 {receiptData.cart.map(item => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <tr key={item.cartId} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '0.6rem 0' }}>{item.name}</td>
                     <td style={{ textAlign: 'center', padding: '0.6rem 0', color: 'var(--text-secondary)' }}>{item.cartQuantity}</td>
                     <td style={{ textAlign: 'right', padding: '0.6rem 0', color: 'var(--text-secondary)' }}>₹{item.sellingPrice.toFixed(2)}</td>
@@ -256,6 +331,31 @@ export default function BillingInterface({ products }: { products: Product[] }) 
           gap: 1rem;
           align-content: start;
         }
+
+        .billing-variant-chip {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.35rem 0.6rem;
+          border-radius: 6px;
+          border: 1px solid var(--border-color);
+          background-color: #F9FAFB;
+          color: var(--text-primary);
+          font-size: 0.78rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .billing-variant-chip:hover {
+          border-color: var(--primary-color);
+          background-color: #EEF2FF;
+          color: var(--primary-color);
+        }
+        .billing-variant-chip.disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
         @media (max-width: 768px) {
           .billing-layout {
             grid-template-columns: 1fr;
@@ -275,7 +375,7 @@ export default function BillingInterface({ products }: { products: Product[] }) 
         }
         @media (max-width: 480px) {
           .billing-product-grid {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(1, 1fr);
           }
         }
       `}</style>
@@ -287,7 +387,7 @@ export default function BillingInterface({ products }: { products: Product[] }) 
             <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
             <input
               type="text"
-              placeholder="Search products by name or SKU..."
+              placeholder="Search products, packet sizes (e.g. 50g), or SKU..."
               className="input"
               style={{ paddingLeft: '3rem' }}
               value={searchTerm}
@@ -298,36 +398,124 @@ export default function BillingInterface({ products }: { products: Product[] }) 
           
           <div style={{ flex: 1, overflowY: 'auto' }}>
             <div className="billing-product-grid">
-              {filteredProducts.map(product => (
-                <div 
-                  key={product.id} 
-                  onClick={() => addToCart(product)}
-                  style={{ 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: 'var(--radius-md)', 
-                    padding: '0.85rem',
-                    cursor: 'pointer',
-                    transition: 'var(--transition)',
-                    backgroundColor: product.stockQuantity === 0 ? '#F3F4F6' : 'white',
-                    opacity: product.stockQuantity === 0 ? 0.6 : 1
-                  }}
-                  onMouseOver={(e) => {
-                    if (product.stockQuantity > 0) e.currentTarget.style.borderColor = 'var(--primary-color)';
-                  }}
-                  onMouseOut={(e) => {
-                    if (product.stockQuantity > 0) e.currentTarget.style.borderColor = 'var(--border-color)';
-                  }}
-                >
-                  <h4 style={{ fontWeight: 600, marginBottom: '0.25rem', fontSize: '0.9rem' }}>{product.name}</h4>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>{product.category}</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--success-color)', fontSize: '0.9rem' }}>₹{product.sellingPrice}</span>
-                    <span style={{ fontSize: '0.78rem', color: product.stockQuantity <= product.minStock ? 'var(--danger-color)' : 'var(--text-secondary)' }}>
-                      {product.stockQuantity} {product.unit}
-                    </span>
+              {filteredProducts.map(product => {
+                const hasVar = product.variants && product.variants.length > 0;
+                const inCartCount = cart
+                  .filter(i => i.productId === product.id)
+                  .reduce((acc, i) => acc + i.cartQuantity, 0);
+
+                if (hasVar && product.variants) {
+                  return (
+                    <div 
+                      key={product.id}
+                      style={{ 
+                        border: '1px solid var(--border-color)', 
+                        borderRadius: 'var(--radius-md)', 
+                        padding: '0.85rem',
+                        backgroundColor: 'white',
+                        display: 'flex', flexDirection: 'column', gap: '0.5rem',
+                        position: 'relative'
+                      }}
+                    >
+                      {inCartCount > 0 && (
+                        <div style={{
+                          position: 'absolute', top: '0.4rem', right: '0.4rem',
+                          backgroundColor: 'var(--primary-color)', color: 'white', borderRadius: '50%',
+                          width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.75rem', fontWeight: 700
+                        }}>
+                          {inCartCount}
+                        </div>
+                      )}
+
+                      <div>
+                        <h4 style={{ fontWeight: 600, marginBottom: '0.15rem', fontSize: '0.9rem' }}>{product.name}</h4>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>{product.category}</p>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--primary-color)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.2rem' }}>
+                          <Layers size={10} /> Tap size to add:
+                        </span>
+                      </div>
+
+                      {/* Direct Inline Size Chips */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {product.variants.map(v => {
+                          const outOfStock = v.stockQuantity <= 0;
+                          const variantInCart = cart.find(c => c.variantId === v.id);
+
+                          return (
+                            <button
+                              key={v.id}
+                              disabled={outOfStock}
+                              onClick={(e) => addVariantToCart(product, v, e)}
+                              className={`billing-variant-chip ${outOfStock ? 'disabled' : ''}`}
+                              style={{
+                                backgroundColor: variantInCart ? '#EEF2FF' : '#F9FAFB',
+                                borderColor: variantInCart ? 'var(--primary-color)' : 'var(--border-color)',
+                              }}
+                            >
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                <span>{v.name}</span>
+                                {variantInCart && (
+                                  <span style={{ backgroundColor: 'var(--primary-color)', color: 'white', padding: '0.05rem 0.35rem', borderRadius: '8px', fontSize: '0.68rem' }}>
+                                    {variantInCart.cartQuantity}
+                                  </span>
+                                )}
+                              </span>
+
+                              <span style={{ color: outOfStock ? 'var(--danger-color)' : 'var(--success-color)', fontWeight: 700 }}>
+                                {outOfStock ? 'Out' : `₹${v.sellingPrice}`}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Single product
+                return (
+                  <div 
+                    key={product.id} 
+                    onClick={() => addStandardProductToCart(product)}
+                    style={{ 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: 'var(--radius-md)', 
+                      padding: '0.85rem',
+                      cursor: 'pointer',
+                      transition: 'var(--transition)',
+                      backgroundColor: product.stockQuantity === 0 ? '#F3F4F6' : 'white',
+                      opacity: product.stockQuantity === 0 ? 0.6 : 1,
+                      position: 'relative'
+                    }}
+                    onMouseOver={(e) => {
+                      if (product.stockQuantity > 0) e.currentTarget.style.borderColor = 'var(--primary-color)';
+                    }}
+                    onMouseOut={(e) => {
+                      if (product.stockQuantity > 0) e.currentTarget.style.borderColor = 'var(--border-color)';
+                    }}
+                  >
+                    {inCartCount > 0 && (
+                      <div style={{
+                        position: 'absolute', top: '0.4rem', right: '0.4rem',
+                        backgroundColor: 'var(--primary-color)', color: 'white', borderRadius: '50%',
+                        width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.75rem', fontWeight: 700
+                      }}>
+                        {inCartCount}
+                      </div>
+                    )}
+                    <h4 style={{ fontWeight: 600, marginBottom: '0.25rem', fontSize: '0.9rem' }}>{product.name}</h4>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>{product.category}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--success-color)', fontSize: '0.9rem' }}>₹{product.sellingPrice}</span>
+                      <span style={{ fontSize: '0.78rem', color: product.stockQuantity <= product.minStock ? 'var(--danger-color)' : 'var(--text-secondary)' }}>
+                        {product.stockQuantity} {product.unit}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -351,16 +539,16 @@ export default function BillingInterface({ products }: { products: Product[] }) 
               </div>
             ) : (
               cart.map(item => (
-                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '0.65rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <div key={item.cartId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '0.65rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>
                     <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>₹{item.sellingPrice} × {item.cartQuantity}</p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0, marginLeft: '0.5rem' }}>
-                    <button className="btn" onClick={() => updateQuantity(item.id, -1)} style={{ padding: '0.25rem', backgroundColor: '#F3F4F6' }}><Minus size={14} /></button>
+                    <button className="btn" onClick={() => updateQuantity(item.cartId, -1)} style={{ padding: '0.25rem', backgroundColor: '#F3F4F6' }}><Minus size={14} /></button>
                     <span style={{ fontWeight: 600, width: '20px', textAlign: 'center', fontSize: '0.875rem' }}>{item.cartQuantity}</span>
-                    <button className="btn" onClick={() => updateQuantity(item.id, 1)} style={{ padding: '0.25rem', backgroundColor: '#F3F4F6' }}><Plus size={14} /></button>
-                    <button className="btn" onClick={() => removeFromCart(item.id)} style={{ padding: '0.25rem', color: 'var(--danger-color)' }}><Trash2 size={14} /></button>
+                    <button className="btn" onClick={() => updateQuantity(item.cartId, 1)} style={{ padding: '0.25rem', backgroundColor: '#F3F4F6' }}><Plus size={14} /></button>
+                    <button className="btn" onClick={() => removeFromCart(item.cartId)} style={{ padding: '0.25rem', color: 'var(--danger-color)' }}><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))

@@ -33,7 +33,6 @@ export default function POSTerminal({ products: initialProducts }: { products: P
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
-  const [variantModalProduct, setVariantModalProduct] = useState<ProductWithVariants | null>(null);
   const [mobileTab, setMobileTab] = useState<'products' | 'cart'>('products');
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -41,7 +40,7 @@ export default function POSTerminal({ products: initialProducts }: { products: P
 
   useEffect(() => {
     if (searchRef.current) searchRef.current.focus();
-  }, [receipt, variantModalProduct]);
+  }, [receipt]);
 
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,7 +50,8 @@ export default function POSTerminal({ products: initialProducts }: { products: P
     return matchSearch && matchCat;
   });
 
-  const addVariantToCart = useCallback((product: ProductWithVariants, variant: ProductVariant) => {
+  const addVariantToCart = useCallback((product: ProductWithVariants, variant: ProductVariant, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (variant.stockQuantity <= 0) {
       alert('This packet size is out of stock!');
       return;
@@ -81,7 +81,6 @@ export default function POSTerminal({ products: initialProducts }: { products: P
       }];
     });
 
-    setVariantModalProduct(null);
     setSearchTerm('');
   }, []);
 
@@ -111,14 +110,6 @@ export default function POSTerminal({ products: initialProducts }: { products: P
 
     setSearchTerm('');
   }, []);
-
-  const handleProductClick = (product: ProductWithVariants) => {
-    if (product.variants && product.variants.length > 0) {
-      setVariantModalProduct(product);
-    } else {
-      addStandardProductToCart(product);
-    }
-  };
 
   const changeQty = (cartId: string, delta: number) => {
     setCart(prev => prev.flatMap(item => {
@@ -259,6 +250,29 @@ export default function POSTerminal({ products: initialProducts }: { products: P
           display: none;
         }
 
+        .variant-chip {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.4rem 0.6rem;
+          border-radius: 8px;
+          border: 1px solid #334155;
+          background-color: #0F172A;
+          color: white;
+          font-size: 0.78rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .variant-chip:hover {
+          border-color: #4F46E5;
+          background-color: #1E1B4B;
+        }
+        .variant-chip.disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
         @media (max-width: 768px) {
           .pos-container {
             flex-direction: column;
@@ -316,78 +330,6 @@ export default function POSTerminal({ products: initialProducts }: { products: P
         }
       `}</style>
 
-      {/* Packet Size / Variant Selector Pop-up Modal */}
-      {variantModalProduct && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1000,
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{
-            background: '#1E293B', borderRadius: '16px', border: '1px solid #334155',
-            padding: '1.5rem', width: '100%', maxWidth: '420px', color: 'white',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.6)', position: 'relative'
-          }}>
-            <button
-              onClick={() => setVariantModalProduct(null)}
-              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
-            >
-              <X size={20} />
-            </button>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <Layers size={20} color="#818CF8" />
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Select Packet Size</h3>
-            </div>
-            <p style={{ color: '#94A3B8', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-              Choose packet size for <strong style={{ color: 'white' }}>{variantModalProduct.name}</strong>:
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {variantModalProduct.variants?.map(v => {
-                const outOfStock = v.stockQuantity <= 0;
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => addVariantToCart(variantModalProduct, v)}
-                    disabled={outOfStock}
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '0.85rem 1rem', borderRadius: '12px', border: '1px solid #334155',
-                      backgroundColor: outOfStock ? '#0F172A' : '#0F172A',
-                      color: outOfStock ? '#64748B' : 'white',
-                      cursor: outOfStock ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s',
-                      opacity: outOfStock ? 0.6 : 1
-                    }}
-                    onMouseOver={e => {
-                      if (!outOfStock) e.currentTarget.style.borderColor = '#4F46E5';
-                    }}
-                    onMouseOut={e => {
-                      if (!outOfStock) e.currentTarget.style.borderColor = '#334155';
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '1rem', textAlign: 'left' }}>{v.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748B' }}>SKU: {v.sku}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 800, fontSize: '1.1rem', color: outOfStock ? '#64748B' : '#4ADE80' }}>
-                        ₹{v.sellingPrice.toFixed(2)}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: outOfStock ? '#EF4444' : '#94A3B8' }}>
-                        {outOfStock ? 'Out of stock' : `${v.stockQuantity} left`}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="pos-container">
         {/* Mobile Tab Switcher */}
         <div className="pos-mobile-nav">
@@ -414,7 +356,7 @@ export default function POSTerminal({ products: initialProducts }: { products: P
               <input
                 ref={searchRef}
                 type="text"
-                placeholder="Search product, packet size (e.g. 50g), or scan barcode…"
+                placeholder="Search product, size (50g), or barcode…"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 style={{
@@ -458,38 +400,97 @@ export default function POSTerminal({ products: initialProducts }: { products: P
                 <p>No products found</p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.85rem' }}>
                 {filtered.map(product => {
                   const hasVar = product.variants && product.variants.length > 0;
                   const inCartCount = cart
                     .filter(i => i.productId === product.id)
                     .reduce((acc, i) => acc + i.cartQuantity, 0);
 
-                  let priceDisplay = `₹${product.sellingPrice}`;
-                  let totalStock = product.stockQuantity;
-
                   if (hasVar && product.variants) {
-                    const prices = product.variants.map(v => v.sellingPrice);
-                    const minP = Math.min(...prices);
-                    const maxP = Math.max(...prices);
-                    priceDisplay = minP === maxP ? `₹${minP}` : `₹${minP} - ₹${maxP}`;
-                    totalStock = product.variants.reduce((acc, v) => acc + v.stockQuantity, 0);
+                    return (
+                      <div
+                        key={product.id}
+                        style={{
+                          padding: '0.85rem', borderRadius: '12px',
+                          backgroundColor: '#1E293B', border: '2px solid #334155',
+                          display: 'flex', flexDirection: 'column', gap: '0.6rem',
+                          position: 'relative'
+                        }}
+                      >
+                        {inCartCount > 0 && (
+                          <div style={{
+                            position: 'absolute', top: '0.4rem', right: '0.4rem',
+                            backgroundColor: '#3B82F6', color: 'white', borderRadius: '50%',
+                            width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.75rem', fontWeight: 700
+                          }}>
+                            {inCartCount}
+                          </div>
+                        )}
+
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.2rem' }}>
+                            <Tag size={11} color="#64748B" />
+                            <span style={{ fontSize: '0.68rem', color: '#64748B' }}>{product.category}</span>
+                          </div>
+                          <p style={{ color: 'white', fontWeight: 700, fontSize: '0.95rem', lineHeight: 1.2 }}>{product.name}</p>
+                          <span style={{ fontSize: '0.7rem', color: '#818CF8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.2rem' }}>
+                            <Layers size={11} /> Tap packet size to add:
+                          </span>
+                        </div>
+
+                        {/* Direct Size Chips (Instant Add) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                          {product.variants.map(v => {
+                            const outOfStock = v.stockQuantity <= 0;
+                            const variantInCart = cart.find(c => c.variantId === v.id);
+
+                            return (
+                              <button
+                                key={v.id}
+                                disabled={outOfStock}
+                                onClick={(e) => addVariantToCart(product, v, e)}
+                                className={`variant-chip ${outOfStock ? 'disabled' : ''}`}
+                                style={{
+                                  backgroundColor: variantInCart ? '#1E3A5F' : '#0F172A',
+                                  borderColor: variantInCart ? '#3B82F6' : '#334155',
+                                }}
+                              >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                  <span>{v.name}</span>
+                                  {variantInCart && (
+                                    <span style={{ backgroundColor: '#3B82F6', color: 'white', padding: '0.05rem 0.4rem', borderRadius: '10px', fontSize: '0.68rem' }}>
+                                      {variantInCart.cartQuantity}
+                                    </span>
+                                  )}
+                                </span>
+
+                                <span style={{ color: outOfStock ? '#EF4444' : '#4ADE80', fontWeight: 700 }}>
+                                  {outOfStock ? 'Out' : `₹${v.sellingPrice}`}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
                   }
 
-                  const outOfStock = totalStock === 0;
-
+                  // Single Standard Product
+                  const outOfStock = product.stockQuantity <= 0;
                   return (
                     <button
                       key={product.id}
-                      onClick={() => handleProductClick(product)}
+                      onClick={() => addStandardProductToCart(product)}
                       disabled={outOfStock}
                       style={{
-                        textAlign: 'left', padding: '0.85rem', borderRadius: '10px', border: 'none', cursor: outOfStock ? 'not-allowed' : 'pointer',
+                        textAlign: 'left', padding: '0.85rem', borderRadius: '12px', border: 'none', cursor: outOfStock ? 'not-allowed' : 'pointer',
                         backgroundColor: inCartCount > 0 ? '#1E3A5F' : '#1E293B',
                         borderWidth: '2px', borderStyle: 'solid',
                         borderColor: inCartCount > 0 ? '#3B82F6' : outOfStock ? '#334155' : '#334155',
                         opacity: outOfStock ? 0.5 : 1, transition: 'all 0.15s',
-                        position: 'relative'
+                        position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
                       }}
                     >
                       {inCartCount > 0 && (
@@ -503,26 +504,20 @@ export default function POSTerminal({ products: initialProducts }: { products: P
                         </div>
                       )}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.3rem' }}>
-                        <Tag size={11} color="#64748B" />
-                        <span style={{ fontSize: '0.68rem', color: '#64748B' }}>{product.category}</span>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.3rem' }}>
+                          <Tag size={11} color="#64748B" />
+                          <span style={{ fontSize: '0.68rem', color: '#64748B' }}>{product.category}</span>
+                        </div>
+                        <p style={{ color: 'white', fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.3rem', lineHeight: 1.2 }}>{product.name}</p>
                       </div>
 
-                      <p style={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.25rem', lineHeight: 1.2 }}>{product.name}</p>
-
-                      <p style={{ color: '#4ADE80', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.25rem' }}>
-                        {priceDisplay}
-                      </p>
-
-                      {hasVar ? (
-                        <div style={{ fontSize: '0.68rem', color: '#818CF8', display: 'flex', alignItems: 'center', gap: '0.2rem', fontWeight: 600 }}>
-                          <Layers size={10} /> {product.variants?.length} packet sizes
-                        </div>
-                      ) : (
+                      <div>
+                        <p style={{ color: '#4ADE80', fontWeight: 700, fontSize: '1rem', marginBottom: '0.25rem' }}>₹{product.sellingPrice}</p>
                         <p style={{ fontSize: '0.68rem', color: outOfStock ? '#EF4444' : product.stockQuantity <= product.minStock ? '#F59E0B' : '#64748B' }}>
                           {outOfStock ? '❌ Out of stock' : `${product.stockQuantity} ${product.unit} left`}
                         </p>
-                      )}
+                      </div>
                     </button>
                   );
                 })}
